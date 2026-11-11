@@ -1,0 +1,337 @@
+package com.tienda.ropa.controller;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RequestBody;
+
+import com.tienda.ropa.dto.PrediccionIARequestDTO;
+import com.tienda.ropa.dto.PrediccionIAResponseDTO;
+import com.tienda.ropa.dto.PrediccionLoteResponseDTO;
+import com.tienda.ropa.dto.ProductoMasVendidoDTO;
+import com.tienda.ropa.dto.ReportePorCategoriaDTO;
+import com.tienda.ropa.dto.StockProductoDTO;
+import com.tienda.ropa.dto.StockVarianteDTO;
+import com.tienda.ropa.dto.TallaProductoDTO;
+import com.tienda.ropa.dto.VarianteMasVendidaDTO;
+import com.tienda.ropa.dto.VariantesPorColorDTO;
+import com.tienda.ropa.service.PrediccionIAService;
+import com.tienda.ropa.service.ReporteService;
+
+@RestController
+@RequestMapping("/api/admin/reportes")
+@PreAuthorize("hasAnyRole('ADMIN', 'GERENTE')")
+public class ReporteController {
+
+    private final ReporteService reporteService;
+    private final PrediccionIAService prediccionIAService;
+    private final com.tienda.ropa.service.MlopsPipelineService mlopsPipelineService;
+
+    public ReporteController(ReporteService reporteService, 
+                             PrediccionIAService prediccionIAService,
+                             com.tienda.ropa.service.MlopsPipelineService mlopsPipelineService) {
+        this.reporteService = reporteService;
+        this.prediccionIAService = prediccionIAService;
+        this.mlopsPipelineService = mlopsPipelineService;
+    }
+
+    // Endpoints para productos más vendidos
+    @GetMapping("/productos-mas-vendidos")
+    public ResponseEntity<List<ProductoMasVendidoDTO>> obtenerProductosMasVendidos(
+            @RequestParam(defaultValue = "10") int limite,
+            @RequestParam(required = false) Long idCategoriaPadre,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fechaInicio,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fechaFin) {
+        try {
+            List<ProductoMasVendidoDTO> productos;
+            
+            // Si se proporcionan fechas, usar consulta con filtro de fecha
+            if (fechaInicio != null && fechaFin != null) {
+                if (idCategoriaPadre != null) {
+                    productos = reporteService.obtenerProductosMasVendidosPorCategoriaPadreYFecha(idCategoriaPadre, fechaInicio, fechaFin, limite);
+                } else {
+                    productos = reporteService.obtenerProductosMasVendidosPorFecha(fechaInicio, fechaFin, limite);
+                }
+            } else {
+                // Sin filtro de fecha
+                if (idCategoriaPadre != null) {
+                    productos = reporteService.obtenerProductosMasVendidosPorCategoriaPadre(idCategoriaPadre, limite);
+                } else {
+                    productos = reporteService.obtenerProductosMasVendidos(limite);
+                }
+            }
+            return ResponseEntity.ok(productos);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    @GetMapping("/variantes-mas-vendidas")
+    public ResponseEntity<List<VarianteMasVendidaDTO>> obtenerVariantesMasVendidas(
+            @RequestParam(defaultValue = "500") int limite,
+            @RequestParam(required = false) Long idCategoriaPadre,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fechaInicio,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fechaFin) {
+        try {
+            List<VarianteMasVendidaDTO> variantes;
+            if (fechaInicio != null && fechaFin != null) {
+                if (idCategoriaPadre != null) {
+                    variantes = reporteService.obtenerVariantesMasVendidasPorCategoriaPadreYFecha(
+                            idCategoriaPadre, fechaInicio, fechaFin, limite);
+                } else {
+                    variantes = reporteService.obtenerVariantesMasVendidasPorFecha(fechaInicio, fechaFin, limite);
+                }
+            } else if (idCategoriaPadre != null) {
+                variantes = reporteService.obtenerVariantesMasVendidasPorCategoriaPadre(idCategoriaPadre, limite);
+            } else {
+                variantes = reporteService.obtenerVariantesMasVendidas(limite);
+            }
+            return ResponseEntity.ok(variantes);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    @GetMapping("/productos-mas-vendidos/por-fecha")
+    public ResponseEntity<List<ProductoMasVendidoDTO>> obtenerProductosMasVendidosPorFecha(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fechaInicio,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fechaFin,
+            @RequestParam(defaultValue = "10") int limite) {
+        try {
+            List<ProductoMasVendidoDTO> productos = reporteService.obtenerProductosMasVendidosPorFecha(
+                    fechaInicio, fechaFin, limite);
+            return ResponseEntity.ok(productos);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    // Endpoints para reportes por categoría
+    @GetMapping("/por-categoria")
+    public ResponseEntity<List<ReportePorCategoriaDTO>> obtenerReportePorCategoria(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fechaInicio,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fechaFin) {
+        try {
+            List<ReportePorCategoriaDTO> reporte;
+            if (fechaInicio != null && fechaFin != null) {
+                reporte = reporteService.obtenerReportePorCategoriaEntreFechas(fechaInicio, fechaFin);
+            } else {
+                reporte = reporteService.obtenerReportePorCategoria();
+            }
+            return ResponseEntity.ok(reporte);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    // Endpoint para obtener subcategorías de una categoría padre específica
+    @GetMapping("/por-categoria/subcategorias")
+    public ResponseEntity<List<ReportePorCategoriaDTO>> obtenerReportePorSubcategoria(
+            @RequestParam Long idCategoriaPadre,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fechaInicio,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fechaFin) {
+        try {
+            List<ReportePorCategoriaDTO> reporte;
+            if (fechaInicio != null && fechaFin != null) {
+                reporte = reporteService.obtenerReportePorSubcategoriaEntreFechas(idCategoriaPadre, fechaInicio, fechaFin);
+            } else {
+                reporte = reporteService.obtenerReportePorSubcategoria(idCategoriaPadre);
+            }
+            return ResponseEntity.ok(reporte);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    // Endpoint para obtener segunda subcategoría de una subcategoría específica
+    @GetMapping("/por-categoria/segunda-subcategoria")
+    public ResponseEntity<List<ReportePorCategoriaDTO>> obtenerReportePorSegundaSubcategoria(
+            @RequestParam Long idSubcategoria,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fechaInicio,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fechaFin) {
+        try {
+            List<ReportePorCategoriaDTO> reporte;
+            if (fechaInicio != null && fechaFin != null) {
+                reporte = reporteService.obtenerReportePorSegundaSubcategoriaEntreFechas(idSubcategoria, fechaInicio, fechaFin);
+            } else {
+                reporte = reporteService.obtenerReportePorSegundaSubcategoria(idSubcategoria);
+            }
+            return ResponseEntity.ok(reporte);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    @GetMapping("/por-categoria/por-fecha")
+    public ResponseEntity<List<ReportePorCategoriaDTO>> obtenerReportePorCategoriaEntreFechas(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fechaInicio,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fechaFin) {
+        try {
+            List<ReportePorCategoriaDTO> reporte = reporteService.obtenerReportePorCategoriaEntreFechas(
+                    fechaInicio, fechaFin);
+            return ResponseEntity.ok(reporte);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    // Endpoint combinado para obtener todos los reportes
+    @GetMapping("/resumen-completo")
+    public ResponseEntity<Map<String, Object>> obtenerResumenCompleto(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fechaInicio,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fechaFin,
+            @RequestParam(defaultValue = "5") int limite) {
+        try {
+            Map<String, Object> resumen = Map.of(
+                    "productosMasVendidos", fechaInicio != null && fechaFin != null
+                            ? reporteService.obtenerProductosMasVendidosPorFecha(fechaInicio, fechaFin, limite)
+                            : reporteService.obtenerProductosMasVendidos(limite),
+                    "reportePorCategoria", fechaInicio != null && fechaFin != null
+                            ? reporteService.obtenerReportePorCategoriaEntreFechas(fechaInicio, fechaFin)
+                            : reporteService.obtenerReportePorCategoria());
+
+            return ResponseEntity.ok(resumen);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    // Endpoint para obtener tallas de un producto específico
+    @GetMapping("/producto/tallas")
+    public ResponseEntity<List<TallaProductoDTO>> obtenerTallasPorProducto(
+            @RequestParam Long idProducto) {
+        try {
+            List<TallaProductoDTO> tallas = reporteService.obtenerTallasPorProducto(idProducto);
+            return ResponseEntity.ok(tallas);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    // Endpoint para obtener variantes por color de un producto y talla específicos
+    @GetMapping("/producto/variantes-por-color")
+    public ResponseEntity<List<VariantesPorColorDTO>> obtenerVariantesPorColor(
+            @RequestParam Long idProducto,
+            @RequestParam String nombreTalla,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fechaInicio,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fechaFin) {
+        try {
+            List<VariantesPorColorDTO> variantes = reporteService.obtenerVariantesPorColor(idProducto, nombreTalla, fechaInicio, fechaFin);
+            return ResponseEntity.ok(variantes);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    private ResponseEntity<Map<String, Object>> respuestaIaDeshabilitada() {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(Map.of(
+                        "status", "disabled",
+                        "message", "Módulo de IA y predicción deshabilitado temporalmente."));
+    }
+
+    @PostMapping("/prediccion")
+    public ResponseEntity<?> predecirCantidadRecomendada(
+            @RequestBody PrediccionIARequestDTO request) {
+        if (!prediccionIAService.isIaHabilitada()) {
+            return respuestaIaDeshabilitada();
+        }
+        try {
+            PrediccionIAResponseDTO response = prediccionIAService.predecirCantidadRecomendada(request);
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    @PostMapping("/prediccion/lote")
+    public ResponseEntity<?> predecirLote(
+            @RequestBody List<PrediccionIARequestDTO> requests) {
+        if (!prediccionIAService.isIaHabilitada()) {
+            return respuestaIaDeshabilitada();
+        }
+        try {
+            PrediccionLoteResponseDTO response = prediccionIAService.predecirLote(requests);
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    @PostMapping("/mlops/entrenar")
+    @PreAuthorize("hasRole('ROLE_ADMIN')")
+    public ResponseEntity<Map<String, Object>> entrenarModelo() {
+        if (!mlopsPipelineService.isIaHabilitada()) {
+            return respuestaIaDeshabilitada();
+        }
+        try {
+            Map<String, Object> resultado = mlopsPipelineService.ejecutarEntrenamientoManual();
+            return ResponseEntity.ok(resultado);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("status", "error", "message", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/mlops/optimizar")
+    @PreAuthorize("hasRole('ROLE_ADMIN')")
+    public ResponseEntity<Map<String, Object>> optimizarModelo() {
+        if (!mlopsPipelineService.isIaHabilitada()) {
+            return respuestaIaDeshabilitada();
+        }
+        try {
+            Map<String, Object> resultado = mlopsPipelineService.ejecutarOptimizacionManual();
+            return ResponseEntity.ok(resultado);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("status", "error", "message", e.getMessage()));
+        }
+    }
+
+    // Stock general: todos los productos con stock total, en almacén y en pisos de venta
+    @GetMapping("/stock-general")
+    public ResponseEntity<List<StockProductoDTO>> obtenerStockGeneral() {
+        try {
+            return ResponseEntity.ok(reporteService.obtenerStockGeneral());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    // Stock por variante de un producto con desglose almacén / pisos de venta
+    @GetMapping("/stock-variantes/{idProducto}")
+    public ResponseEntity<List<StockVarianteDTO>> obtenerStockVariantesPorProducto(
+            @PathVariable Long idProducto) {
+        try {
+            return ResponseEntity.ok(reporteService.obtenerStockVariantesPorProducto(idProducto));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    @GetMapping("/mlops/metricas")
+    @PreAuthorize("hasAnyRole('ADMIN', 'GERENTE')")
+    public ResponseEntity<Map<String, Object>> obtenerMetricas() {
+        if (!mlopsPipelineService.isIaHabilitada()) {
+            return respuestaIaDeshabilitada();
+        }
+        try {
+            Map<String, Object> resultado = mlopsPipelineService.obtenerMetricasActuales();
+            return ResponseEntity.ok(resultado);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("status", "error", "message", e.getMessage()));
+        }
+    }
+}

@@ -1,0 +1,593 @@
+import apiClient from '../config/apiClient';
+import { RUTAS_REPORTES } from '../config/apiConfig';
+import { IA_PREDICCION_HABILITADA } from '../config/featureFlags';
+import axios from 'axios';
+import type {
+  ProductoMasVendido,
+  VarianteMasVendida,
+  ReporteCategoriaData,
+  FiltrosReporte,
+  ResumenGeneralVentas,
+  ProductoDetalleVenta,
+  VentasPorPeriodo,
+  TallaProducto,
+  VariantesPorColor,
+  PrediccionIARequest,
+  PrediccionIAResponse,
+  PrediccionLoteResponse,
+  MetricasModeloResponse,
+  EntrenarModeloResponse,
+  StockProducto,
+  StockVariante
+} from '../types/ReporteVentas';
+
+const assertIaHabilitada = (): void => {
+  if (!IA_PREDICCION_HABILITADA) {
+    throw new Error('Módulo de IA y predicción deshabilitado temporalmente');
+  }
+};
+
+const formatFechaInicio = (fechaStr?: string): string => {
+  if (!fechaStr) return '';
+  if (fechaStr.includes('T')) return fechaStr;
+  return `${fechaStr}T00:00:00`;
+};
+
+const formatFechaFin = (fechaStr?: string): string => {
+  if (!fechaStr) return '';
+  if (fechaStr.includes('T')) return fechaStr;
+  return `${fechaStr}T23:59:59`;
+};
+
+export const ReporteService = {
+  
+  /**
+   * Obtiene los productos más vendidos con filtros opcionales
+   */
+  getProductosMasVendidos: async (filtros?: FiltrosReporte): Promise<ProductoMasVendido[]> => {
+    try {
+      const params = new URLSearchParams();
+      
+      if (filtros?.fechaInicio) params.append('fechaInicio', formatFechaInicio(filtros.fechaInicio));
+      if (filtros?.fechaFin) params.append('fechaFin', formatFechaFin(filtros.fechaFin));
+      if (filtros?.categoria) params.append('categoria', filtros.categoria);
+      if (filtros?.subcategoria) params.append('subcategoria', filtros.subcategoria);
+      if (filtros?.proveedor) params.append('proveedor', filtros.proveedor);
+      if (filtros?.idVendedor) params.append('idVendedor', filtros.idVendedor.toString());
+      if (filtros?.metodoPago) params.append('metodoPago', filtros.metodoPago);
+      if (filtros?.tipoCliente) params.append('tipoCliente', filtros.tipoCliente);
+      if (filtros?.limite) params.append('limite', filtros.limite.toString());
+      if (filtros?.idCategoriaPadre) params.append('idCategoriaPadre', filtros.idCategoriaPadre);
+      
+      const url = params.toString() 
+        ? `${RUTAS_REPORTES.PRODUCTOS_MAS_VENDIDOS}?${params.toString()}`
+        : RUTAS_REPORTES.PRODUCTOS_MAS_VENDIDOS;
+        
+      const response = await apiClient.get<ProductoMasVendido[]>(url);
+      return response.data;
+    } catch (error: any) {
+      console.error('Error al obtener productos más vendidos:', error);
+      throw new Error((axios.isAxiosError(error) ? error.response?.data?.message : undefined) || 'Error al cargar los productos más vendidos');
+    }
+  },
+
+  /**
+   * Ranking de variantes (producto + color + talla) más vendidas.
+   */
+  getVariantesMasVendidas: async (filtros?: FiltrosReporte): Promise<VarianteMasVendida[]> => {
+    try {
+      const params = new URLSearchParams();
+      if (filtros?.fechaInicio) params.append('fechaInicio', formatFechaInicio(filtros.fechaInicio));
+      if (filtros?.fechaFin) params.append('fechaFin', formatFechaFin(filtros.fechaFin));
+      if (filtros?.limite) params.append('limite', filtros.limite.toString());
+      if (filtros?.idCategoriaPadre) params.append('idCategoriaPadre', filtros.idCategoriaPadre);
+
+      const url = params.toString()
+        ? `${RUTAS_REPORTES.VARIANTES_MAS_VENDIDAS}?${params.toString()}`
+        : RUTAS_REPORTES.VARIANTES_MAS_VENDIDAS;
+
+      const response = await apiClient.get<VarianteMasVendida[]>(url);
+      return response.data;
+    } catch (error: unknown) {
+      console.error('Error al obtener variantes más vendidas:', error);
+      throw new Error(
+        (axios.isAxiosError(error) ? error.response?.data?.message : undefined) ||
+          'Error al cargar las variantes más vendidas'
+      );
+    }
+  },
+
+  /**
+   * Envía los datos al backend principal para obtener la predicción de IA.
+   */
+  predecirCantidadRecomendada: async (datos: PrediccionIARequest): Promise<PrediccionIAResponse> => {
+    assertIaHabilitada();
+    try {
+      const response = await apiClient.post<PrediccionIAResponse>(RUTAS_REPORTES.PREDICCION, datos, {
+        timeout: 30000 // 30 segundos
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('Error al obtener la predicción de IA:', error);
+      throw new Error((axios.isAxiosError(error) ? error.response?.data?.message : undefined) || 'Error al obtener la predicción');
+    }
+  },
+
+  /**
+   * Envía la lista de datos al backend principal para obtener predicciones en lote de IA.
+   */
+  predecirLote: async (datos: PrediccionIARequest[]): Promise<PrediccionLoteResponse> => {
+    assertIaHabilitada();
+    try {
+      const response = await apiClient.post<PrediccionLoteResponse>(RUTAS_REPORTES.PREDICCION_LOTE, datos, {
+        timeout: 60000 // 60 segundos
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('Error al obtener la predicción por lote de IA:', error);
+      throw new Error((axios.isAxiosError(error) ? error.response?.data?.message : undefined) || 'Error al obtener la predicción por lote');
+    }
+  },
+
+  /**
+   * Obtiene el reporte de ventas por categoría
+   */
+  getReportePorCategoria: async (filtros?: FiltrosReporte): Promise<ReporteCategoriaData[]> => {
+    try {
+      const params = new URLSearchParams();
+      
+      if (filtros?.fechaInicio) params.append('fechaInicio', formatFechaInicio(filtros.fechaInicio));
+      if (filtros?.fechaFin) params.append('fechaFin', formatFechaFin(filtros.fechaFin));
+      if (filtros?.categoria) params.append('categoria', filtros.categoria);
+      if (filtros?.subcategoria) params.append('subcategoria', filtros.subcategoria);
+      
+      const url = params.toString() 
+        ? `${RUTAS_REPORTES.POR_CATEGORIA}?${params.toString()}`
+        : RUTAS_REPORTES.POR_CATEGORIA;
+        
+      const response = await apiClient.get<ReporteCategoriaData[]>(url);
+      return response.data;
+    } catch (error: any) {
+      console.error('Error al obtener reporte por categoría:', error);
+      throw new Error((axios.isAxiosError(error) ? error.response?.data?.message : undefined) || 'Error al cargar el reporte por categoría');
+    }
+  },
+
+  /**
+   * Obtiene el reporte de ventas por subcategoría
+   */
+  getReportePorSubcategoria: async (idCategoriaPadre: number, filtros?: FiltrosReporte): Promise<ReporteCategoriaData[]> => {
+    try {
+      const params = new URLSearchParams();
+      params.append('idCategoriaPadre', idCategoriaPadre.toString());
+      
+      if (filtros?.fechaInicio) params.append('fechaInicio', formatFechaInicio(filtros.fechaInicio));
+      if (filtros?.fechaFin) params.append('fechaFin', formatFechaFin(filtros.fechaFin));
+      
+      const url = `${RUTAS_REPORTES.POR_CATEGORIA}/subcategorias?${params.toString()}`;
+      const response = await apiClient.get<ReporteCategoriaData[]>(url);
+      return response.data;
+    } catch (error: any) {
+      console.error('Error al obtener reporte por subcategoría:', error);
+      throw new Error((axios.isAxiosError(error) ? error.response?.data?.message : undefined) || 'Error al cargar el reporte por subcategoría');
+    }
+  },
+
+  /**
+   * Obtiene el reporte de ventas por segunda subcategoría
+   */
+  getReportePorSegundaSubcategoria: async (idSubcategoria: number, filtros?: FiltrosReporte): Promise<ReporteCategoriaData[]> => {
+    try {
+      const params = new URLSearchParams();
+      params.append('idSubcategoria', idSubcategoria.toString());
+      
+      if (filtros?.fechaInicio) params.append('fechaInicio', formatFechaInicio(filtros.fechaInicio));
+      if (filtros?.fechaFin) params.append('fechaFin', formatFechaFin(filtros.fechaFin));
+      
+      const url = `${RUTAS_REPORTES.POR_CATEGORIA}/segunda-subcategoria?${params.toString()}`;
+      const response = await apiClient.get<ReporteCategoriaData[]>(url);
+      return response.data;
+    } catch (error: any) {
+      console.error('Error al obtener reporte por segunda subcategoría:', error);
+      throw new Error((axios.isAxiosError(error) ? error.response?.data?.message : undefined) || 'Error al cargar el reporte por segunda subcategoría');
+    }
+  },
+
+  /**
+   * Obtiene el resumen general de ventas
+   */
+  getResumenGeneral: async (filtros?: FiltrosReporte): Promise<ResumenGeneralVentas> => {
+    try {
+      const params = new URLSearchParams();
+      
+      if (filtros?.fechaInicio) params.append('fechaInicio', formatFechaInicio(filtros.fechaInicio));
+      if (filtros?.fechaFin) params.append('fechaFin', formatFechaFin(filtros.fechaFin));
+      
+      const url = params.toString() 
+        ? `${RUTAS_REPORTES.RESUMEN_GENERAL}?${params.toString()}`
+        : RUTAS_REPORTES.RESUMEN_GENERAL;
+        
+      const response = await apiClient.get<{ productosMasVendidos?: { ingresosTotales?: number; cantidadVendida?: number }[]; reportePorCategoria?: { categoria?: string }[] }>(url);
+      
+      // El endpoint /resumen-completo devuelve productos y categorías
+      // Vamos a calcular métricas básicas desde estos datos
+      const data = response.data;
+      const productos = data.productosMasVendidos || [];
+      const categorias = data.reportePorCategoria || [];
+      
+      const totalIngresos = productos.reduce((sum, p) => sum + (p.ingresosTotales || 0), 0);
+      const totalVentas = productos.reduce((sum, p) => sum + (p.cantidadVendida || 0), 0);
+
+      let diasPeriodo = 30;
+      if (filtros?.fechaInicio && filtros?.fechaFin) {
+        const diffMs = new Date(filtros.fechaFin).getTime() - new Date(filtros.fechaInicio).getTime();
+        diasPeriodo = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24)) + 1);
+      }
+
+      const categoriasOrdenadas = [...categorias].sort((a: any, b: any) => {
+        return (b.ingresosTotales ?? b.cantidadTotalVendida ?? 0) - (a.ingresosTotales ?? a.cantidadTotalVendida ?? 0);
+      });
+
+      const resumen: ResumenGeneralVentas = {
+        totalProductosVendidos: productos.length,
+        totalIngresos,
+        totalVentas,
+        promedioVentaPorDia: totalIngresos / diasPeriodo,
+        categoriaTopVentas: categoriasOrdenadas.length > 0 ? categoriasOrdenadas[0]?.categoria || 'Sin categoría' : 'Sin categoría',
+        colorMasVendido: 'N/A',
+        tallaMasVendida: 'N/A',
+        periodoAnalizado: {
+          fechaInicio: filtros?.fechaInicio || 'N/A',
+          fechaFin: filtros?.fechaFin || 'N/A',
+          dias: diasPeriodo
+        }
+      };
+      
+      return resumen;
+    } catch (error: any) {
+      console.error('Error al obtener resumen general:', error);
+      throw new Error((axios.isAxiosError(error) ? error.response?.data?.message : undefined) || 'Error al cargar el resumen general');
+    }
+  },
+
+  /**
+   * Obtiene las ventas por período (para gráficos de tendencias)
+   */
+  getVentasPorPeriodo: async (filtros?: FiltrosReporte): Promise<VentasPorPeriodo[]> => {
+    try {
+      const params = new URLSearchParams();
+      
+      if (filtros?.fechaInicio) params.append('fechaInicio', formatFechaInicio(filtros.fechaInicio));
+      if (filtros?.fechaFin) params.append('fechaFin', formatFechaFin(filtros.fechaFin));
+      
+      const url = params.toString() 
+        ? `${RUTAS_REPORTES.VENTAS_POR_PERIODO}?${params.toString()}`
+        : RUTAS_REPORTES.VENTAS_POR_PERIODO;
+        
+      const response = await apiClient.get<VentasPorPeriodo[]>(url);
+      return response.data;
+    } catch (error: any) {
+      console.error('Error al obtener ventas por período:', error);
+      throw new Error((axios.isAxiosError(error) ? error.response?.data?.message : undefined) || 'Error al cargar las ventas por período');
+    }
+  },
+
+  /**
+   * Obtiene el detalle de productos vendidos (nivel variante)
+   */
+  getProductosDetalle: async (filtros?: FiltrosReporte): Promise<ProductoDetalleVenta[]> => {
+    try {
+      const params = new URLSearchParams();
+      
+      if (filtros?.fechaInicio) params.append('fechaInicio', formatFechaInicio(filtros.fechaInicio));
+      if (filtros?.fechaFin) params.append('fechaFin', formatFechaFin(filtros.fechaFin));
+      if (filtros?.categoria) params.append('categoria', filtros.categoria);
+      if (filtros?.subcategoria) params.append('subcategoria', filtros.subcategoria);
+      if (filtros?.limite) params.append('limite', filtros.limite.toString());
+      
+      const url = params.toString() 
+        ? `${RUTAS_REPORTES.PRODUCTOS_DETALLE}?${params.toString()}`
+        : RUTAS_REPORTES.PRODUCTOS_DETALLE;
+        
+      const response = await apiClient.get<ProductoDetalleVenta[]>(url);
+      return response.data;
+    } catch (error: any) {
+      console.error('Error al obtener detalle de productos:', error);
+      throw new Error((axios.isAxiosError(error) ? error.response?.data?.message : undefined) || 'Error al cargar el detalle de productos');
+    }
+  },
+
+  /**
+   * Utilidades para generar filtros de fecha comunes
+   */
+  filtrosFecha: {
+    hoy: (): Pick<FiltrosReporte, 'fechaInicio' | 'fechaFin'> => {
+      const hoy = new Date().toISOString().split('T')[0];
+      return { fechaInicio: hoy, fechaFin: hoy };
+    },
+    
+    ultimaSemana: (): Pick<FiltrosReporte, 'fechaInicio' | 'fechaFin'> => {
+      const fin = new Date();
+      const inicio = new Date();
+      inicio.setDate(fin.getDate() - 7);
+      return {
+        fechaInicio: inicio.toISOString().split('T')[0],
+        fechaFin: fin.toISOString().split('T')[0]
+      };
+    },
+    
+    ultimoMes: (): Pick<FiltrosReporte, 'fechaInicio' | 'fechaFin'> => {
+      const fin = new Date();
+      const inicio = new Date();
+      inicio.setMonth(fin.getMonth() - 1);
+      return {
+        fechaInicio: inicio.toISOString().split('T')[0],
+        fechaFin: fin.toISOString().split('T')[0]
+      };
+    },
+    
+    ultimoTrimestre: (): Pick<FiltrosReporte, 'fechaInicio' | 'fechaFin'> => {
+      const fin = new Date();
+      const inicio = new Date();
+      inicio.setMonth(fin.getMonth() - 3);
+      return {
+        fechaInicio: inicio.toISOString().split('T')[0],
+        fechaFin: fin.toISOString().split('T')[0]
+      };
+    },
+    
+    esteAno: (): Pick<FiltrosReporte, 'fechaInicio' | 'fechaFin'> => {
+      const ano = new Date().getFullYear();
+      return {
+        fechaInicio: `${ano}-01-01`,
+        fechaFin: `${ano}-12-31`
+      };
+    }
+  },
+
+  /**
+   * Obtiene las tallas disponibles para un producto específico
+   */
+  getTallasPorProducto: async (idProducto: number): Promise<TallaProducto[]> => {
+    try {
+      const response = await apiClient.get<TallaProducto[]>(
+        RUTAS_REPORTES.TALLAS_POR_PRODUCTO(idProducto)
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error('Error al obtener tallas del producto:', error);
+      throw new Error((axios.isAxiosError(error) ? error.response?.data?.message : undefined) || 'Error al cargar las tallas del producto');
+    }
+  },
+
+  /**
+   * Obtiene las variantes agrupadas por color para un producto y talla específicos
+   */
+  getVariantesPorColor: async (idProducto: number, nombreTalla: string, fechaInicio?: string, fechaFin?: string): Promise<VariantesPorColor[]> => {
+    try {
+      const params = new URLSearchParams();
+      params.append('idProducto', idProducto.toString());
+      params.append('nombreTalla', nombreTalla);
+      if (fechaInicio) params.append('fechaInicio', formatFechaInicio(fechaInicio));
+      if (fechaFin) params.append('fechaFin', formatFechaFin(fechaFin));
+
+      const response = await apiClient.get<VariantesPorColor[]>(
+        `${RUTAS_REPORTES.BASE}/producto/variantes-por-color?${params.toString()}`
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error('Error al obtener variantes por color:', error);
+      throw new Error((axios.isAxiosError(error) ? error.response?.data?.message : undefined) || 'Error al cargar las variantes por color');
+    }
+  },
+
+  /**
+   * 📊 Calcula el crecimiento comparando dos períodos de ventas
+   */
+  calcularCrecimiento: {
+    /**
+     * Obtiene las fechas para comparar mes actual vs mes anterior
+     */
+    obtenerRangosMensuales: () => {
+      const hoy = new Date();
+      
+      // Mes actual: desde el día 1 hasta hoy
+      const inicioMesActual = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+      const finMesActual = new Date(hoy);
+      
+      // Mes anterior: desde el día 1 hasta el último día del mes anterior
+      const inicioMesAnterior = new Date(hoy.getFullYear(), hoy.getMonth() - 1, 1);
+      const finMesAnterior = new Date(hoy.getFullYear(), hoy.getMonth(), 0);
+      
+      return {
+        mesActual: {
+          fechaInicio: inicioMesActual.toISOString().split('T')[0],
+          fechaFin: finMesActual.toISOString().split('T')[0]
+        },
+        mesAnterior: {
+          fechaInicio: inicioMesAnterior.toISOString().split('T')[0],
+          fechaFin: finMesAnterior.toISOString().split('T')[0]
+        }
+      };
+    },
+
+    /**
+     * Calcula el porcentaje de crecimiento entre dos valores
+     */
+    calcularPorcentaje: (valorActual: number, valorAnterior: number): number => {
+      if (valorAnterior === 0) {
+        return valorActual > 0 ? 100 : 0;
+      }
+      return ((valorActual - valorAnterior) / valorAnterior) * 100;
+    },
+
+    /**
+     * Obtiene métricas de crecimiento comparando mes actual vs anterior
+     */
+    obtenerMetricasCrecimiento: async () => {
+      try {
+        const rangos = ReporteService.calcularCrecimiento.obtenerRangosMensuales();
+        console.log('📅 Rangos de fechas para crecimiento:', rangos);
+
+        // Importar VentaService para obtener todas las ventas
+        const { VentaService } = await import('./VentaService');
+        
+        // Obtener todas las ventas y filtrarlas por fechas
+        const todasLasVentas = await VentaService.obtenerTodasVentas();
+        
+        if (!Array.isArray(todasLasVentas)) {
+          throw new TypeError('No se pudieron obtener las ventas');
+        }
+
+        // Filtrar ventas del mes actual
+        const ventasMesActual = todasLasVentas.filter(venta => {
+          if (!venta.fechaVenta) return false;
+          const fechaVenta = new Date(venta.fechaVenta).toISOString().split('T')[0];
+          return fechaVenta >= rangos.mesActual.fechaInicio && fechaVenta <= rangos.mesActual.fechaFin;
+        });
+        
+        // Filtrar ventas del mes anterior
+        const ventasMesAnterior = todasLasVentas.filter(venta => {
+          if (!venta.fechaVenta) return false;
+          const fechaVenta = new Date(venta.fechaVenta).toISOString().split('T')[0];
+          return fechaVenta >= rangos.mesAnterior.fechaInicio && fechaVenta <= rangos.mesAnterior.fechaFin;
+        });
+
+        console.log('📊 Ventas mes actual:', ventasMesActual);
+        console.log('📊 Ventas mes anterior:', ventasMesAnterior);
+
+        // Calcular métricas del mes actual
+        const metricsActual = {
+          totalIngresos: ventasMesActual.reduce((sum, venta) => sum + (venta.totalVentas || 0), 0),
+          totalVentas: ventasMesActual.length
+        };
+
+        // Calcular métricas del mes anterior
+        const metricsAnterior = {
+          totalIngresos: ventasMesAnterior.reduce((sum, venta) => sum + (venta.totalVentas || 0), 0),
+          totalVentas: ventasMesAnterior.length
+        };
+
+        // Calcular ticket promedio
+        const ticketActual = metricsActual.totalVentas > 0 
+          ? metricsActual.totalIngresos / metricsActual.totalVentas 
+          : 0;
+        const ticketAnterior = metricsAnterior.totalVentas > 0 
+          ? metricsAnterior.totalIngresos / metricsAnterior.totalVentas 
+          : 0;
+
+        // Calcular porcentajes de crecimiento
+        const crecimientoIngresos = ReporteService.calcularCrecimiento.calcularPorcentaje(
+          metricsActual.totalIngresos, metricsAnterior.totalIngresos
+        );
+        const crecimientoVentas = ReporteService.calcularCrecimiento.calcularPorcentaje(
+          metricsActual.totalVentas, metricsAnterior.totalVentas
+        );
+        const crecimientoTicket = ReporteService.calcularCrecimiento.calcularPorcentaje(
+          ticketActual, ticketAnterior
+        );
+
+        console.log('📈 Métricas de crecimiento calculadas:', {
+          metricsActual,
+          metricsAnterior,
+          crecimientoIngresos,
+          crecimientoVentas,
+          crecimientoTicket
+        });
+
+        return {
+          mesActual: metricsActual,
+          mesAnterior: metricsAnterior,
+          crecimiento: {
+            ingresos: crecimientoIngresos,
+            ventas: crecimientoVentas,
+            ticket: crecimientoTicket
+          },
+          rangos
+        };
+      } catch (error: any) {
+        console.error('Error al calcular métricas de crecimiento:', error);
+        return {
+          mesActual: { totalIngresos: 0, totalVentas: 0 },
+          mesAnterior: { totalIngresos: 0, totalVentas: 0 },
+          crecimiento: { ingresos: 0, ventas: 0, ticket: 0 },
+          rangos: ReporteService.calcularCrecimiento.obtenerRangosMensuales()
+        };
+      }
+    }
+  },
+
+  /**
+   * Obtiene las métricas reales del modelo (MAE y RMSE) desde el backend principal
+   */
+  getMetricasModelo: async (): Promise<MetricasModeloResponse> => {
+    assertIaHabilitada();
+    try {
+      const response = await apiClient.get<MetricasModeloResponse>(RUTAS_REPORTES.MLOPS_METRICAS);
+      return response.data;
+    } catch (error: any) {
+      console.error('Error al obtener métricas del modelo:', error);
+      throw new Error((axios.isAxiosError(error) ? error.response?.data?.message : undefined) || 'Error al obtener las métricas del modelo');
+    }
+  },
+
+  /**
+   * Ejecuta el entrenamiento manual del modelo en el backend principal
+   */
+  entrenarModelo: async (): Promise<EntrenarModeloResponse> => {
+    assertIaHabilitada();
+    try {
+      const response = await apiClient.post<EntrenarModeloResponse>(RUTAS_REPORTES.MLOPS_ENTRENAR, null, {
+        timeout: 180000 // 3 minutos (reentrenamiento de XGBoost sobre gran volumen de datos)
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('Error al entrenar el modelo:', error);
+      throw new Error((axios.isAxiosError(error) ? error.response?.data?.message : undefined) || 'Error al iniciar el entrenamiento del modelo');
+    }
+  },
+
+  /**
+   * Ejecuta la optimización avanzada de hiperparámetros y reentrenamiento del modelo en el backend principal
+   */
+  optimizarModelo: async (): Promise<EntrenarModeloResponse> => {
+    assertIaHabilitada();
+    try {
+      const response = await apiClient.post<EntrenarModeloResponse>(RUTAS_REPORTES.MLOPS_OPTIMIZAR, null, {
+        timeout: 240000 // 4 minutos (búsqueda aleatoria + entrenamiento final)
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('Error al optimizar el modelo:', error);
+      throw new Error((axios.isAxiosError(error) ? error.response?.data?.message : undefined) || 'Error al iniciar la optimización del modelo');
+    }
+  },
+
+  /**
+   * Obtiene el stock general de todos los productos con desglose almacén / pisos de venta
+   */
+  getStockGeneral: async (): Promise<StockProducto[]> => {
+    try {
+      const response = await apiClient.get<StockProducto[]>(RUTAS_REPORTES.STOCK_GENERAL);
+      return response.data;
+    } catch (error: any) {
+      console.error('Error al obtener stock general:', error);
+      throw new Error((axios.isAxiosError(error) ? error.response?.data?.message : undefined) || 'Error al cargar el stock general');
+    }
+  },
+
+  /**
+   * Obtiene el stock por variante de un producto con desglose almacén / pisos de venta
+   */
+  getStockVariantesPorProducto: async (idProducto: number): Promise<StockVariante[]> => {
+    try {
+      const response = await apiClient.get<StockVariante[]>(
+        RUTAS_REPORTES.STOCK_VARIANTES_POR_PRODUCTO(idProducto)
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error('Error al obtener variantes de stock:', error);
+      throw new Error((axios.isAxiosError(error) ? error.response?.data?.message : undefined) || 'Error al cargar las variantes de stock');
+    }
+  }
+};

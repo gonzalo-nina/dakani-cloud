@@ -1,0 +1,10 @@
+node_modules
+dist
+dist-ssr
+dev-dist
+.git
+*.log
+tsc_output.txt
+.env
+.env.*
+

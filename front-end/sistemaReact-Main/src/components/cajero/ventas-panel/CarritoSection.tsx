@@ -1,0 +1,291 @@
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { MaterialIcon } from '@/shared/ui';
+import type { ProductoVenta } from '../../../types/Producto';
+import type { ProductoVariante } from '../../../types/ProductoVariante';
+import type { PrecioCalculado } from './types';
+
+interface CarritoSectionProps {
+  productosSeleccionadosVenta: ProductoVenta[];
+  handleEliminarProductoDeVenta: (id: number) => void;
+  handleActualizarCantidadEnVenta: (id: number, cantidad: number) => void;
+  variantesConPreciosCompletos: Map<number, ProductoVariante>;
+  esMayorista: boolean;
+  calcularPrecioSegunCantidad: (variante: ProductoVariante | undefined, cantidad: number) => PrecioCalculado;
+  resetearFormulario: () => void;
+  metodoPago: string;
+  setMetodoPago: (metodo: string) => void;
+  subtotalVenta: number;
+  igvVenta: number;
+  totalGeneralVenta: number;
+  handleProcesarVentaFinal: () => void;
+  cargandoProcesoVenta: boolean;
+  clienteValidoParaVenta: boolean;
+}
+
+export const CarritoSection = ({
+  productosSeleccionadosVenta,
+  handleEliminarProductoDeVenta,
+  handleActualizarCantidadEnVenta,
+  variantesConPreciosCompletos,
+  esMayorista,
+  calcularPrecioSegunCantidad,
+  resetearFormulario,
+  metodoPago,
+  setMetodoPago,
+  subtotalVenta,
+  igvVenta,
+  totalGeneralVenta,
+  handleProcesarVentaFinal,
+  cargandoProcesoVenta,
+  clienteValidoParaVenta,
+}: CarritoSectionProps) => {
+  const paymentMethods = [
+    { 
+      id: 'efectivo', 
+      name: 'Efectivo', 
+      icon: () => (
+        <span className="font-bold text-lg mr-1">S/</span>
+      )
+    },
+    { 
+      id: 'tarjeta', 
+      name: 'Tarjeta', 
+      icon: () => (
+        <MaterialIcon icon="credit_card" className="h-[18px] w-[18px]" />
+      )
+    },
+    { 
+      id: 'yape', 
+      name: 'Yape', 
+      icon: () => (
+        <MaterialIcon icon="smartphone" className="h-[18px] w-[18px]" />
+      )
+    },
+    { 
+      id: 'plin', 
+      name: 'Plin', 
+      icon: () => (
+        <MaterialIcon icon="smartphone" className="h-[18px] w-[18px]" />
+      )
+    },
+  ];
+
+  return (
+    <div className="lg:col-span-5 caj-card rounded-[2rem] shadow-2xl border flex flex-col h-[900px] overflow-hidden carrito-scroll">
+      <div className="px-6 py-4 border-b caj-border-subtle flex items-center justify-between caj-card">
+        <div className="flex items-center gap-4">
+          <div className="w-10 h-10 caj-icon-chip rounded-2xl flex items-center justify-center shadow-lg">
+            <MaterialIcon icon="credit_card" className="h-5 w-5" />
+          </div>
+          <h2 className="caj-heading text-[12px] font-bold tracking-[0.3em] uppercase">Lista de compras</h2>
+        </div>
+        <button 
+          onClick={resetearFormulario}
+          className="caj-text-faint text-[10px] font-bold hover:text-red-500 uppercase tracking-[0.2em] transition-colors caj-page px-4 py-2 rounded-xl border caj-border"
+        >
+          Limpiar lista
+        </button>
+      </div>
+      
+      {/* Lista Scrollable */}
+      <div className="flex-1 overflow-y-auto px-4 py-3 custom-scrollbar carrito-scroll caj-surface-muted/50">
+        {productosSeleccionadosVenta.length > 0 ? (
+          <div className="space-y-2">
+            {productosSeleccionadosVenta.map((item, index) => (
+              <div key={`${item.idProductoVariante}-${index}`} className="group caj-card border rounded-xl p-2 transition-all duration-300 hover:shadow-sm">
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 min-w-0">
+                    <h4 className="caj-heading text-sm font-bold uppercase tracking-tight leading-tight truncate">{item.descripcion}</h4>
+                    <div className="flex items-center gap-2 mt-0.5">
+                       <span className="text-xs font-bold caj-text-muted uppercase tracking-widest caj-surface-elevated px-1.5 py-0.5 rounded border caj-border-subtle">
+                          {item.color}
+                       </span>
+                       <span className="text-xs font-bold uppercase tracking-wider caj-icon-chip px-1.5 py-0.5 rounded">
+                          T {item.talla}
+                       </span>
+                    </div>
+                  </div>
+
+                  <div className="caj-segment flex items-center border rounded-lg p-0.5 shadow-inner scale-90">
+                    <button 
+                      onClick={() => handleActualizarCantidadEnVenta(item.idProductoVariante, item.cantidad - 1)}
+                      className="w-6 h-6 flex items-center justify-center caj-segment-inactive caj-pagination-btn rounded transition-all font-bold"
+                    >
+                      -
+                    </button>
+                    <span className="caj-heading w-7 text-center text-[13px] font-extrabold">{item.cantidad}</span>
+                    <button 
+                      onClick={() => handleActualizarCantidadEnVenta(item.idProductoVariante, item.cantidad + 1)}
+                      className="w-6 h-6 flex items-center justify-center caj-segment-inactive caj-pagination-btn rounded transition-all font-bold"
+                    >
+                      +
+                    </button>
+                  </div>
+
+                  <div className="text-right min-w-[70px]">
+                     <span className="caj-heading text-[12px] font-extrabold tracking-tight">
+                       S/{(item.precio * item.cantidad).toFixed(2)}
+                     </span>
+                     <span className="caj-label block text-xs font-bold uppercase tracking-widest leading-none">
+                        S/{item.precio.toFixed(2)}
+                     </span>
+                  </div>
+
+                  <button 
+                    onClick={() => handleEliminarProductoDeVenta(item.idProductoVariante)}
+                    className="p-1 caj-icon-muted hover:text-red-500 hover:bg-red-50 rounded transition-all flex items-center justify-center"
+                  >
+                    <MaterialIcon icon="close" className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+                
+                {/* Badge Descuento/Tarifa - Ultra compact */}
+                {(() => {
+                   const variante = variantesConPreciosCompletos.get(item.idProductoVariante);
+                   const preciosInfo = variante ? calcularPrecioSegunCantidad(variante, item.cantidad) : null;
+                   if (preciosInfo?.tipoDescuento || esMayorista) {
+                      return (
+                        <div className="mt-1 pt-1 border-t caj-border-subtle flex items-center gap-1.5">
+                          <div className="w-1 h-1 rounded-full caj-accent-dot"></div>
+                          <span className="text-[10px] font-bold caj-heading uppercase tracking-[0.2em]">
+                             APLICADA: {preciosInfo?.tipoDescuento === 'mayorista' || esMayorista ? 'MAYORISTA' : 'VOLUMEN'}
+                          </span>
+                        </div>
+                      );
+                   }
+                   return null;
+                })()}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="flex flex-col justify-center items-center h-full text-center py-20">
+            <div className="w-20 h-20 caj-surface-elevated rounded-full flex items-center justify-center mb-8 border caj-border-subtle">
+              <MaterialIcon icon="payments" className="h-10 w-10 caj-icon-muted" />
+            </div>
+            <h3 className="caj-heading text-[13px] font-bold uppercase tracking-[0.3em] mb-3">Lista vacía</h3>
+            <p className="caj-text-faint text-xs font-medium max-w-[200px] leading-relaxed">Selecciona productos del catálogo para empezar a vender.</p>
+          </div>
+        )}
+      </div>
+      
+      {/* Totals & Checkout */}
+      <div className="px-6 py-6 caj-card border-t caj-border space-y-4 relative z-20">
+        <div className="space-y-6">
+          <label className="caj-label block text-[10px] font-bold tracking-[0.35em] uppercase pl-1">Método de pago</label>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {paymentMethods.map(method => (
+              <button 
+                key={method.id}
+                onClick={() => setMetodoPago(method.id)}
+                className={`flex flex-col items-center justify-center py-5 rounded-[1.5rem] border transition-all relative overflow-hidden group ${metodoPago === method.id ? 'caj-segment-active shadow-[0_20px_40px_rgba(0,0,0,0.15)] scale-[1.05]' : 'caj-segment caj-segment-inactive border-transparent'}`}
+              >
+                <div className={`mb-2.5 transition-transform group-hover:scale-110 ${metodoPago === method.id ? '' : 'caj-icon-muted'}`}>
+                  {method.icon()}
+                </div>
+                <span className="text-[9px] font-bold uppercase tracking-[0.25em]">{method.name}</span>
+                {metodoPago === method.id && (
+                   <div className="absolute top-0 right-0 p-1">
+                      <div className="w-1 h-1 rounded-full caj-pulse-dot animate-ping"></div>
+                   </div>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+        
+        <div className="pt-4 space-y-2">
+          <div className="flex justify-between items-center caj-text-muted">
+            <span className="text-[10px] font-bold uppercase tracking-[0.2em]">Subtotal</span>
+            <span className="text-[16px] font-bold tracking-tighter caj-heading">S/{subtotalVenta.toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between items-center caj-text-muted">
+            <span className="text-[10px] font-bold uppercase tracking-[0.2em]">Impuestos (IGV)</span>
+            <span className="text-[16px] font-bold tracking-tighter caj-heading">S/{igvVenta.toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between items-center pt-4 border-t caj-border-subtle">
+            <div className="flex flex-col">
+               <span className="caj-heading text-[12px] font-bold uppercase tracking-[0.4em] mb-1">TOTAL A COBRAR</span>
+               <span className="caj-text-faint text-[10px] font-bold uppercase tracking-widest">Monto total con IGV</span>
+            </div>
+            <span className="caj-heading text-[42px] font-extrabold tracking-tighter leading-none">S/{totalGeneralVenta.toFixed(2)}</span>
+          </div>
+        </div>
+        
+        <BotonCobrar
+          onConfirm={handleProcesarVentaFinal}
+          disabled={
+            productosSeleccionadosVenta.length === 0 ||
+            cargandoProcesoVenta ||
+            !metodoPago ||
+            !clienteValidoParaVenta
+          }
+          cargando={cargandoProcesoVenta}
+          total={totalGeneralVenta}
+        />
+      </div>
+    </div>
+  );
+};
+
+function BotonCobrar({ onConfirm, disabled, cargando, total }: {
+  onConfirm: () => void;
+  disabled: boolean;
+  cargando: boolean;
+  total: number;
+}) {
+  const [confirmando, setConfirmando] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const cancelar = useCallback(() => {
+    setConfirmando(false);
+    if (timerRef.current) clearTimeout(timerRef.current);
+  }, []);
+
+  useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
+
+  const handleClick = () => {
+    if (cargando || disabled) return;
+    if (!confirmando) {
+      setConfirmando(true);
+      timerRef.current = setTimeout(cancelar, 4000);
+      return;
+    }
+    cancelar();
+    onConfirm();
+  };
+
+  const label = cargando
+    ? 'PROCESANDO PAGO...'
+    : confirmando
+      ? `CONFIRMAR S/${total.toFixed(2)}`
+      : 'COBRAR AHORA';
+
+  const icon = cargando
+    ? 'progress_activity'
+    : confirmando
+      ? 'check_circle'
+      : 'credit_card';
+
+  return (
+    <button
+      onClick={handleClick}
+      disabled={disabled}
+      className={`w-full py-6 rounded-[2rem] text-[12px] font-bold uppercase tracking-[0.4em] shadow-[0_30px_60px_rgba(0,0,0,0.2)] transition-all active:scale-[0.97] disabled:opacity-20 disabled:cursor-not-allowed group flex items-center justify-center gap-4 relative overflow-hidden ${
+        confirmando ? 'bg-green-600 text-white' : 'caj-btn-primary'
+      }`}
+    >
+      <MaterialIcon icon={icon} className={`w-5 h-5 ${cargando ? 'animate-spin' : ''}`} />
+      <span className="relative z-10">{label}</span>
+      {confirmando && (
+        <span
+          role="button"
+          onClick={(e) => { e.stopPropagation(); cancelar(); }}
+          className="absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-full hover:bg-white/20 transition-colors cursor-pointer"
+        >
+          <MaterialIcon icon="close" className="w-4 h-4" />
+        </span>
+      )}
+    </button>
+  );
+}

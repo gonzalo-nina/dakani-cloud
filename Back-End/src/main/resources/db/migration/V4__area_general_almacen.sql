@@ -1,0 +1,2 @@
+-- (vacío intencional) El concepto "área General / almacenero general" fue eliminado.
+-- Los sectores de almacén son Damas, Caballeros, Niños.

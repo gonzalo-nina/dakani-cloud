@@ -1,0 +1,117 @@
+import apiClient from "../config/apiClient";
+import { RUTAS_ALMACENERO_SOLICITUDES, RUTAS_SUPERVISOR_SOLICITUDES } from "../config/apiConfig";
+import type { AlmacenAtenderLoteResult, AlmacenSolicitud, ItemSolicitudAlmacen, RechazoBody, SupervisorHistorialSolicitudItem } from "../types/AlmacenSolicitudes";
+import type { AreaCatalogo } from "../types/EstructuraAlmacen";
+import { num } from "../utils/num";
+
+function normalizarLinea(raw: unknown): ItemSolicitudAlmacen {
+  const o = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  return {
+    idVariante: num(o.idVariante, 0),
+    sku: typeof o.sku === "string" ? o.sku : "",
+    descripcion: typeof o.descripcion === "string" ? o.descripcion : "",
+    cantidad: num(o.cantidad, 0),
+  };
+}
+
+function normalizarSolicitud(raw: unknown): AlmacenSolicitud {
+  const o = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  const lineasRaw = o.lineas;
+  const lineas = Array.isArray(lineasRaw) ? lineasRaw.map(normalizarLinea) : [];
+  const idUsuarioVal = o.idUsuario;
+  let idUsuario: number | null = null;
+  if (idUsuarioVal !== null && idUsuarioVal !== undefined) {
+    const n = num(idUsuarioVal, NaN);
+    idUsuario = Number.isNaN(n) ? null : n;
+  }
+  return {
+    idSolicitud: num(o.idSolicitud, 0),
+    tipoSolicitud: typeof o.tipoSolicitud === "string" ? o.tipoSolicitud : "REPOSICION",
+    fechaCreacion: typeof o.fechaCreacion === "string" ? o.fechaCreacion : "",
+    idUsuario,
+    nombreVendedor: typeof o.nombreVendedor === "string" ? o.nombreVendedor : "",
+    codigoLote: typeof o.codigoLote === "string" ? o.codigoLote : null,
+    idUbicacionAreaOrigen: (() => {
+      if (o.idUbicacionAreaOrigen == null) return null;
+      const n = num(o.idUbicacionAreaOrigen, 0);
+      return n > 0 ? n : null;
+    })(),
+    pisoOrigen: typeof o.pisoOrigen === "string" ? o.pisoOrigen : null,
+    sectorOrigen: typeof o.sectorOrigen === "string" ? o.sectorOrigen : null,
+    etiquetaOrigen: typeof o.etiquetaOrigen === "string" ? o.etiquetaOrigen : null,
+    idUbicacionAreaDestino: (() => {
+      if (o.idUbicacionAreaDestino == null) return null;
+      const n = num(o.idUbicacionAreaDestino, 0);
+      return n > 0 ? n : null;
+    })(),
+    pisoDestino: typeof o.pisoDestino === "string" ? o.pisoDestino : null,
+    sectorDestino: typeof o.sectorDestino === "string" ? o.sectorDestino : null,
+    etiquetaDestino: typeof o.etiquetaDestino === "string" ? o.etiquetaDestino : null,
+    lineas,
+  };
+}
+
+export const AlmacenSolicitudesApi = {
+  cola: async (sector?: string, signal?: AbortSignal): Promise<AlmacenSolicitud[]> => {
+    const params: Record<string, string> = {};
+    if (sector != null && sector.trim() !== "") {
+      params.sector = sector.trim();
+    }
+    const res = await apiClient.get<unknown[]>(RUTAS_ALMACENERO_SOLICITUDES.COLA, {
+      params: Object.keys(params).length > 0 ? params : undefined,
+      signal,
+    });
+    const arr = Array.isArray(res.data) ? res.data : [];
+    return arr.map(normalizarSolicitud);
+  },
+
+  atender: async (idSolicitud: number): Promise<void> => {
+    await apiClient.post(RUTAS_ALMACENERO_SOLICITUDES.ATENDER(idSolicitud));
+  },
+
+  atenderLote: async (idsSolicitud: number[]): Promise<AlmacenAtenderLoteResult> => {
+    const unicos = [...new Set(idsSolicitud.filter((id) => id > 0))];
+    if (unicos.length === 0) return { atendidos: [], rechazados: [] };
+    if (unicos.length === 1) {
+      const res = await apiClient.post<{ estado?: string }>(
+        RUTAS_ALMACENERO_SOLICITUDES.ATENDER(unicos[0]),
+      );
+      const rechazado = res.data?.estado === "CANCELADO";
+      return rechazado
+        ? { atendidos: [], rechazados: unicos }
+        : { atendidos: unicos, rechazados: [] };
+    }
+    const res = await apiClient.post<AlmacenAtenderLoteResult>(
+      RUTAS_ALMACENERO_SOLICITUDES.ATENDER_LOTE,
+      { idsSolicitud: unicos },
+    );
+    return res.data ?? { atendidos: unicos, rechazados: [] };
+  },
+
+  rechazar: async (idSolicitud: number, body: RechazoBody): Promise<void> => {
+    await apiClient.post(RUTAS_ALMACENERO_SOLICITUDES.RECHAZAR(idSolicitud), body);
+  },
+};
+
+export const SupervisorSolicitudesApi = {
+  listarAreas: async (): Promise<AreaCatalogo[]> => {
+    const res = await apiClient.get<unknown[]>(RUTAS_SUPERVISOR_SOLICITUDES.AREAS);
+    return Array.isArray(res.data) ? (res.data as AreaCatalogo[]) : [];
+  },
+
+  historial: async (fecha: string, areaId?: number, tipo?: string, signal?: AbortSignal): Promise<SupervisorHistorialSolicitudItem[]> => {
+    const params: Record<string, string> = { fecha };
+    if (areaId != null && areaId > 0) {
+      params.areaId = String(areaId);
+    }
+    if (tipo != null && tipo.trim().length > 0) {
+      params.tipo = tipo.trim();
+    }
+    const res = await apiClient.get<unknown[]>(RUTAS_SUPERVISOR_SOLICITUDES.HISTORIAL, {
+      params,
+      signal,
+    });
+    const arr = Array.isArray(res.data) ? res.data : [];
+    return arr as SupervisorHistorialSolicitudItem[];
+  },
+};

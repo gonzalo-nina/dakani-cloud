@@ -1,0 +1,739 @@
+@import "tailwindcss";
+@config "../tailwind.config.js";
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+@import "./styles/app-themes.css";
+@import "./styles/theme-contrast-overrides.css";
+@import "./styles/cajero-theme.css";
+@import "./styles/reports-analytics.css";
+
+:root {
+  --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  /* Acento suave para barra activa del menú (sin pintar toda la app) */
+  --accent: #334155;
+
+  /* M3 Easing tokens */
+  --m3-ease-emphasized: cubic-bezier(0.2, 0, 0, 1);
+  --m3-ease-emphasized-decelerate: cubic-bezier(0.05, 0.7, 0.1, 1);
+  --m3-ease-emphasized-accelerate: cubic-bezier(0.3, 0, 0.8, 0.15);
+  --m3-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --m3-ease-standard-decelerate: cubic-bezier(0, 0, 0, 1);
+  --m3-ease-standard-accelerate: cubic-bezier(0.3, 0, 1, 1);
+
+  /* M3 Duration tokens */
+  --m3-duration-short4: 200ms;
+  --m3-duration-medium4: 400ms;
+
+  /* Modal fade pattern (M3 dialogs) */
+  --modal-enter-duration: var(--m3-duration-medium4);
+  --modal-exit-duration: var(--m3-duration-short4);
+  --modal-enter-easing: var(--m3-ease-emphasized-decelerate);
+  --modal-exit-easing: var(--m3-ease-emphasized-accelerate);
+  --modal-enter-scale-from: 0.92;
+
+  /* Page transition pattern (M3) */
+  --m3-duration-short3: 150ms;
+  --m3-duration-medium3: 350ms;
+  --page-enter-duration: var(--m3-duration-medium3);
+  --page-exit-duration: var(--m3-duration-short3);
+  --page-enter-easing: var(--m3-ease-emphasized-decelerate);
+  --page-exit-easing: var(--m3-ease-emphasized-accelerate);
+  --page-fade-through-scale-from: 0.96;
+  --page-fade-through-exit-opacity: 0;
+  --page-shared-axis-offset: 16px;
+  --page-mini-enter-duration: 150ms;
+
+  /* Aliases legacy */
+  --ease-google-emphasized: var(--m3-ease-emphasized);
+  --ease-google-decelerate: var(--m3-ease-emphasized-decelerate);
+  --ease-google-accelerate: var(--m3-ease-emphasized-accelerate);
+  --ease-google-standard: var(--m3-ease-standard);
+}
+
+/* Tablas: filas alternas según tema */
+.table-zebra tbody tr:nth-child(odd) {
+  background-color: color-mix(in srgb, var(--app-bg-muted) 85%, transparent);
+}
+
+
+
+/* Animaciones para modales */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes scaleOut {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+.animate-scaleIn {
+  animation: scaleIn 0.3s ease-out forwards;
+}
+
+.animate-fadeOut {
+  animation: fadeOut 0.3s ease-out forwards;
+}
+
+.animate-scaleOut {
+  animation: scaleOut 0.3s ease-out forwards;
+}
+
+/* M3 modal motion (fade pattern for dialogs) */
+@keyframes m3ModalFadeEnter {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes m3ModalScaleEnter {
+  from {
+    opacity: 0;
+    transform: scale(var(--modal-enter-scale-from));
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes m3ModalFadeExit {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes m3SheetSlideEnter {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+@keyframes m3SheetSlideExit {
+  from { transform: translateY(0); }
+  to { transform: translateY(100%); }
+}
+
+.modal-motion-overlay--enter {
+  opacity: 0;
+  animation: m3ModalFadeEnter var(--modal-enter-duration) var(--modal-enter-easing) both;
+}
+
+.modal-motion-overlay--exit {
+  animation: m3ModalFadeExit var(--modal-exit-duration) var(--modal-exit-easing) forwards;
+}
+
+.modal-motion-panel--enter {
+  opacity: 0;
+  transform: scale(var(--modal-enter-scale-from));
+  transform-origin: center center;
+  will-change: opacity, transform;
+  animation: m3ModalScaleEnter var(--modal-enter-duration) var(--modal-enter-easing) both;
+}
+
+.modal-motion-panel--exit {
+  animation: m3ModalFadeExit var(--modal-exit-duration) var(--modal-exit-easing) forwards;
+}
+
+.modal-motion-sheet--enter {
+  transform: translateY(100%);
+  animation: m3SheetSlideEnter var(--modal-enter-duration) var(--modal-enter-easing) both;
+}
+
+.modal-motion-sheet--exit {
+  animation: m3SheetSlideExit var(--modal-exit-duration) var(--modal-exit-easing) forwards;
+}
+
+/* Capa de blur estática (no animar opacity sobre backdrop-filter) */
+.modal-motion-backdrop-blur {
+  pointer-events: none;
+}
+
+@keyframes slideUpFade {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slideUpFade {
+  animation: slideUpFade 0.32s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes bounceIn {
+  0%   { opacity: 0; transform: scale(0.5); }
+  60%  { opacity: 1; transform: scale(1.1); }
+  80%  { transform: scale(0.95); }
+  100% { transform: scale(1); }
+}
+
+.animate-bounce-in {
+  animation: bounceIn 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes fadeInRight {
+  from { opacity: 0; transform: translateX(20px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.animate-fadeInRight {
+  animation: fadeInRight 0.3s ease-out forwards;
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fadeInUp {
+  animation: fadeInUp 0.3s ease-out forwards;
+}
+
+@keyframes navFlyoutEnter {
+  from {
+    opacity: 0;
+    transform: translateX(-10px) translateY(-50%) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) translateY(-50%) scale(1);
+  }
+}
+
+.animate-nav-flyout-enter {
+  transform: translateY(-50%);
+  transform-origin: left center;
+  animation: navFlyoutEnter 0.28s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes googleSoftFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-googleSoftFadeIn {
+  animation: googleSoftFadeIn 0.38s var(--ease-google-emphasized) both;
+}
+
+.animate-stagger-item {
+  animation: googleSoftFadeIn 0.38s var(--ease-google-emphasized) both;
+  animation-delay: calc(var(--stagger-index, 0) * 35ms);
+}
+
+@keyframes countPop {
+  0%   { transform: scale(0.9); opacity: 0; }
+  60%  { transform: scale(1.02); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.animate-countUp {
+  animation: countPop 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
+}
+
+/* M3 page transitions */
+.page-transition-live-mount {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  z-index: -1;
+}
+
+.page-transition {
+  transform-origin: center top;
+  background-color: var(--app-bg);
+}
+
+.page-transition--idle {
+  opacity: 1;
+  transform: none;
+}
+
+.page-transition--active {
+  will-change: opacity, transform;
+}
+
+.page-transition--loading {
+  opacity: var(--page-fade-through-exit-opacity);
+  animation: none;
+  transform: none;
+}
+
+.page-transition--enter-prep {
+  opacity: 0;
+  transform: scale(var(--page-fade-through-scale-from));
+  animation: none;
+}
+
+.page-transition--mini-enter {
+  opacity: 0;
+  animation: m3PageFadeEnter var(--page-mini-enter-duration) var(--page-enter-easing) both;
+}
+
+.page-transition--fade-through-enter {
+  opacity: 0;
+  transform: scale(var(--page-fade-through-scale-from));
+}
+
+@keyframes m3PageFadeThroughExit {
+  from { opacity: 1; }
+  to { opacity: var(--page-fade-through-exit-opacity); }
+}
+
+@keyframes m3PageFadeThroughEnter {
+  from {
+    opacity: 0;
+    transform: scale(var(--page-fade-through-scale-from));
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes m3PageSharedXForwardExit {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(calc(var(--page-shared-axis-offset) * -1));
+  }
+}
+
+@keyframes m3PageSharedXForwardEnter {
+  from {
+    opacity: 0;
+    transform: translateX(var(--page-shared-axis-offset));
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes m3PageSharedXBackwardExit {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(var(--page-shared-axis-offset));
+  }
+}
+
+@keyframes m3PageSharedXBackwardEnter {
+  from {
+    opacity: 0;
+    transform: translateX(calc(var(--page-shared-axis-offset) * -1));
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes m3PageSharedYForwardExit {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(calc(var(--page-shared-axis-offset) * -1));
+  }
+}
+
+@keyframes m3PageSharedYForwardEnter {
+  from {
+    opacity: 0;
+    transform: translateY(var(--page-shared-axis-offset));
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes m3PageSharedYBackwardExit {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(var(--page-shared-axis-offset));
+  }
+}
+
+@keyframes m3PageSharedYBackwardEnter {
+  from {
+    opacity: 0;
+    transform: translateY(calc(var(--page-shared-axis-offset) * -1));
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes m3PageFadeExit {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes m3PageFadeEnter {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.page-transition--fade-through-exit {
+  animation: m3PageFadeThroughExit var(--page-exit-duration) var(--page-exit-easing) forwards;
+}
+
+.page-transition--fade-through-enter {
+  animation: m3PageFadeThroughEnter var(--page-enter-duration) var(--page-enter-easing) both;
+}
+
+.page-transition--shared-x-forward-exit {
+  animation: m3PageSharedXForwardExit var(--page-exit-duration) var(--page-exit-easing) forwards;
+}
+
+.page-transition--shared-x-forward-enter {
+  animation: m3PageSharedXForwardEnter var(--page-enter-duration) var(--page-enter-easing) both;
+}
+
+.page-transition--shared-x-backward-exit {
+  animation: m3PageSharedXBackwardExit var(--page-exit-duration) var(--page-exit-easing) forwards;
+}
+
+.page-transition--shared-x-backward-enter {
+  animation: m3PageSharedXBackwardEnter var(--page-enter-duration) var(--page-enter-easing) both;
+}
+
+.page-transition--shared-y-forward-exit {
+  animation: m3PageSharedYForwardExit var(--page-exit-duration) var(--page-exit-easing) forwards;
+}
+
+.page-transition--shared-y-forward-enter {
+  animation: m3PageSharedYForwardEnter var(--page-enter-duration) var(--page-enter-easing) both;
+}
+
+.page-transition--shared-y-backward-exit {
+  animation: m3PageSharedYBackwardExit var(--page-exit-duration) var(--page-exit-easing) forwards;
+}
+
+.page-transition--shared-y-backward-enter {
+  animation: m3PageSharedYBackwardEnter var(--page-enter-duration) var(--page-enter-easing) both;
+}
+
+.page-transition--fade-exit {
+  animation: m3PageFadeExit var(--page-exit-duration) var(--page-exit-easing) forwards;
+}
+
+.page-transition--fade-enter {
+  animation: m3PageFadeEnter var(--page-enter-duration) var(--page-enter-easing) both;
+}
+
+/* Skeleton loading — brillo deslizante */
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgb(229 231 235) 0%,
+    rgb(243 244 246) 35%,
+    rgb(255 255 255) 50%,
+    rgb(243 244 246) 65%,
+    rgb(229 231 235) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+}
+
+.skeleton-shimmer-muted {
+  background: linear-gradient(
+    90deg,
+    rgb(243 244 246) 0%,
+    rgb(249 250 251) 35%,
+    rgb(255 255 255) 50%,
+    rgb(249 250 251) 65%,
+    rgb(243 244 246) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+}
+
+.skeleton-shimmer-dark {
+  background: linear-gradient(
+    90deg,
+    rgb(255 255 255 / 0.06) 0%,
+    rgb(255 255 255 / 0.14) 35%,
+    rgb(255 255 255 / 0.22) 50%,
+    rgb(255 255 255 / 0.14) 65%,
+    rgb(255 255 255 / 0.06) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-transition {
+    animation: none !important;
+    transition: none;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .page-transition--active {
+    will-change: auto;
+  }
+
+  .page-transition--loading,
+  .page-transition--enter-prep,
+  .page-transition--mini-enter {
+    opacity: 1 !important;
+    transform: none !important;
+    animation: none !important;
+  }
+
+  .page-transition--fade-through-enter {
+    opacity: 1;
+    transform: none;
+  }
+
+  .page-transition--fade-through-exit,
+  .page-transition--fade-through-enter,
+  .page-transition--shared-x-forward-exit,
+  .page-transition--shared-x-forward-enter,
+  .page-transition--shared-x-backward-exit,
+  .page-transition--shared-x-backward-enter,
+  .page-transition--shared-y-forward-exit,
+  .page-transition--shared-y-forward-enter,
+  .page-transition--shared-y-backward-exit,
+  .page-transition--shared-y-backward-enter,
+  .page-transition--fade-exit,
+  .page-transition--fade-enter {
+    animation: none !important;
+  }
+
+  .modal-motion-overlay--enter,
+  .modal-motion-overlay--exit,
+  .modal-motion-panel--enter,
+  .modal-motion-panel--exit,
+  .modal-motion-sheet--enter,
+  .modal-motion-sheet--exit {
+    animation: none;
+  }
+
+  .skeleton-shimmer,
+  .skeleton-shimmer-muted,
+  .skeleton-shimmer-dark {
+    animation: none;
+    background: rgb(229 231 235);
+  }
+
+  .skeleton-shimmer-muted {
+    background: rgb(243 244 246);
+  }
+
+  .skeleton-shimmer-dark {
+    background: rgb(255 255 255 / 0.1);
+  }
+}
+
+/* Scrollbar personalizado para el carrito de ventas */
+.carrito-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.carrito-scroll::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 3px;
+}
+
+.carrito-scroll::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+.carrito-scroll::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Scrollbar Global Estilizado */
+::-webkit-scrollbar {
+  width: 14px;
+  height: 14px;
+}
+
+::-webkit-scrollbar-track {
+  background-color: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--app-text-faint, #9ca3af);
+  border-radius: 14px;
+  border: 4px solid transparent;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--app-text-muted, #6b7280);
+}
+
+/* ==========================================================================
+   Google Soft Transitions & Micro-Interactions (Material 3 Style)
+   ========================================================================== */
+
+/* 1. Curva de animación y transiciones globales (excepto en vistas de Vendedor) */
+div[data-view]:not([data-view="vendedor-piso"]):not([data-user-role="ROLE_VENDEDOR"]) button,
+div[data-view]:not([data-view="vendedor-piso"]):not([data-user-role="ROLE_VENDEDOR"]) select,
+div[data-view]:not([data-view="vendedor-piso"]):not([data-user-role="ROLE_VENDEDOR"]) input,
+div[data-view]:not([data-view="vendedor-piso"]):not([data-user-role="ROLE_VENDEDOR"]) a,
+div[data-view]:not([data-view="vendedor-piso"]):not([data-user-role="ROLE_VENDEDOR"]) [role="tab"],
+div[data-view]:not([data-view="vendedor-piso"]):not([data-user-role="ROLE_VENDEDOR"]) .app-card,
+div[data-view]:not([data-view="vendedor-piso"]):not([data-user-role="ROLE_VENDEDOR"]) .app-panel,
+div[data-view]:not([data-view="vendedor-piso"]):not([data-user-role="ROLE_VENDEDOR"]) .app-catalogo-row,
+div[data-view]:not([data-view="vendedor-piso"]):not([data-user-role="ROLE_VENDEDOR"]) .app-metric-card,
+div[data-view]:not([data-view="vendedor-piso"]):not([data-user-role="ROLE_VENDEDOR"]) .app-sidebar-nav-item,
+div[data-view]:not([data-view="vendedor-piso"]):not([data-user-role="ROLE_VENDEDOR"]) .hover-scale-google {
+  transition: 
+    transform 350ms var(--ease-google-emphasized),
+    box-shadow 350ms var(--ease-google-emphasized),
+    background-color 350ms var(--ease-google-emphasized),
+    border-color 350ms var(--ease-google-emphasized),
+    color 350ms var(--ease-google-emphasized),
+    opacity 350ms var(--ease-google-emphasized);
+}
+
+.transition-google {
+  transition: all 350ms var(--ease-google-emphasized);
+}
+
+.transition-google-fast {
+  transition: all 220ms var(--ease-google-decelerate);
+}
+
+/* 2. Micro-interacción global de hover elástico y click activo (excepto en vistas de Vendedor) */
+div[data-view]:not([data-view="vendedor-piso"]):not([data-user-role="ROLE_VENDEDOR"]) button:not([disabled]):not(.caj-numpad-btn),
+div[data-view]:not([data-view="vendedor-piso"]):not([data-user-role="ROLE_VENDEDOR"]) .app-card,
+div[data-view]:not([data-view="vendedor-piso"]):not([data-user-role="ROLE_VENDEDOR"]) .app-panel,
+div[data-view]:not([data-view="vendedor-piso"]):not([data-user-role="ROLE_VENDEDOR"]) .app-catalogo-row,
+div[data-view]:not([data-view="vendedor-piso"]):not([data-user-role="ROLE_VENDEDOR"]) .app-metric-card,
+div[data-view]:not([data-view="vendedor-piso"]):not([data-user-role="ROLE_VENDEDOR"]) .hover-scale-google {
+  transform: translateY(0) scale(1);
+}
+
+div[data-view]:not([data-view="vendedor-piso"]):not([data-user-role="ROLE_VENDEDOR"]) button:not([disabled]):not(.caj-numpad-btn):hover,
+div[data-view]:not([data-view="vendedor-piso"]):not([data-user-role="ROLE_VENDEDOR"]) .app-card:hover,
+div[data-view]:not([data-view="vendedor-piso"]):not([data-user-role="ROLE_VENDEDOR"]) .app-panel:hover,
+div[data-view]:not([data-view="vendedor-piso"]):not([data-user-role="ROLE_VENDEDOR"]) .app-catalogo-row:hover,
+div[data-view]:not([data-view="vendedor-piso"]):not([data-user-role="ROLE_VENDEDOR"]) .app-metric-card:hover,
+div[data-view]:not([data-view="vendedor-piso"]):not([data-user-role="ROLE_VENDEDOR"]) .hover-scale-google:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px -6px rgba(0, 0, 0, 0.06);
+}
+
+div[data-view]:not([data-view="vendedor-piso"]):not([data-user-role="ROLE_VENDEDOR"]) button:not([disabled]):not(.caj-numpad-btn):active,
+div[data-view]:not([data-view="vendedor-piso"]):not([data-user-role="ROLE_VENDEDOR"]) .app-card:active,
+div[data-view]:not([data-view="vendedor-piso"]):not([data-user-role="ROLE_VENDEDOR"]) .app-panel:active,
+div[data-view]:not([data-view="vendedor-piso"]):not([data-user-role="ROLE_VENDEDOR"]) .app-catalogo-row:active,
+div[data-view]:not([data-view="vendedor-piso"]):not([data-user-role="ROLE_VENDEDOR"]) .app-metric-card:active,
+div[data-view]:not([data-view="vendedor-piso"]):not([data-user-role="ROLE_VENDEDOR"]) .hover-scale-google:active {
+  transform: translateY(0.5px);
+  box-shadow: none;
+}
+
+/* Efecto focus en inputs al estilo Material You */
+.focus-ring-google:focus {
+  outline: none;
+  border-color: var(--app-border-strong);
+  box-shadow: 0 0 0 4px var(--app-ring);
+  background-color: var(--app-surface);
+}
+
+/* Acordeón elástico usando grid-template-rows */
+.accordion-wrapper {
+  display: grid;
+  transition: grid-template-rows 350ms var(--ease-google-emphasized);
+}
+
+.accordion-wrapper-closed {
+  grid-template-rows: 0fr;
+}
+
+.accordion-wrapper-open {
+  grid-template-rows: 1fr;
+}
+
+.accordion-content {
+  overflow: hidden;
+}
+
+/* Optimización para filas de tablas: evita transforms que causan reflow y lag */
+tr.animate-stagger-item {
+  animation-name: googleSoftFadeInRow;
+}
+
+@keyframes googleSoftFadeInRow {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+

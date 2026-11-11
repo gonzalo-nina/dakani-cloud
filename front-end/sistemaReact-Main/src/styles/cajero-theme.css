@@ -1,0 +1,242 @@
+/* Tokens --caj-* definidos por tema en app-themes.css (data-theme en html) */
+
+.caj-layout-bg {
+  background-color: var(--caj-layout-bg);
+}
+
+.caj-page {
+  background-color: var(--caj-bg);
+  color: var(--caj-text);
+}
+
+.caj-card {
+  background-color: var(--caj-surface);
+  border-color: var(--caj-border-strong);
+  color: var(--caj-text);
+}
+
+.caj-surface-muted {
+  background-color: var(--caj-bg-muted);
+}
+
+.caj-surface-elevated {
+  background-color: var(--caj-surface-elevated);
+}
+
+.caj-input {
+  background-color: var(--caj-input);
+  color: var(--caj-text);
+}
+
+.caj-input:focus {
+  background-color: var(--caj-input-focus);
+  --tw-ring-color: var(--caj-ring);
+}
+
+.caj-heading {
+  color: var(--caj-text);
+}
+
+.caj-label {
+  color: var(--caj-text-muted);
+}
+
+.caj-text-muted {
+  color: var(--caj-text-muted);
+}
+
+.caj-text-faint {
+  color: var(--caj-text-faint);
+}
+
+.caj-border {
+  border-color: var(--caj-border-strong);
+}
+
+.caj-border-subtle {
+  border-color: var(--caj-border);
+}
+
+.caj-icon-btn {
+  background-color: var(--caj-surface);
+  border-color: var(--caj-border-strong);
+  color: var(--caj-text-muted);
+}
+
+.caj-icon-btn:hover {
+  color: var(--caj-text);
+}
+
+.caj-btn-primary {
+  background-color: var(--caj-accent);
+  color: var(--caj-accent-fg);
+}
+
+.caj-btn-primary:hover {
+  opacity: 0.9;
+}
+
+.caj-btn-primary:disabled {
+  background-color: var(--caj-border-strong);
+  color: var(--caj-text-faint);
+  opacity: 1;
+}
+
+.caj-segment {
+  background-color: var(--caj-bg-muted);
+}
+
+.caj-segment-active {
+  background-color: var(--caj-accent);
+  color: var(--caj-accent-fg);
+}
+
+.caj-segment-inactive {
+  color: var(--caj-text-muted);
+}
+
+.caj-segment-inactive:hover {
+  color: var(--caj-text);
+}
+
+.caj-product-card {
+  background-color: var(--caj-surface);
+  border-color: var(--caj-border-strong);
+}
+
+[data-theme="dark"] .caj-product-card:hover {
+  border-color: var(--caj-accent);
+}
+
+.caj-pagination-btn:hover:not(:disabled) {
+  background-color: var(--caj-surface);
+  color: var(--caj-text);
+}
+
+/* Scrollbar carrito en dark */
+[data-theme="dark"] .carrito-scroll::-webkit-scrollbar-track {
+  background: var(--caj-bg-muted);
+}
+
+[data-theme="dark"] .carrito-scroll::-webkit-scrollbar-thumb {
+  background: var(--caj-border-strong);
+}
+
+[data-theme="dark"] .carrito-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--caj-text-faint);
+}
+
+/* Toasts: fondo tipo panel Cursor + acento de color suave */
+[data-theme="dark"] .caj-toast-error {
+  background-color: #2d2d2d;
+  border-color: #5a3030;
+  color: #f0c0c0;
+}
+
+[data-theme="dark"] .caj-toast-error .caj-toast-icon-wrap {
+  background-color: #3c2a2a;
+}
+
+[data-theme="dark"] .caj-toast-info {
+  background-color: #2d2d2d;
+  border-color: #3a3a4a;
+  color: #c8d0e0;
+}
+
+[data-theme="dark"] .caj-toast-info .caj-toast-icon-wrap {
+  background-color: #2e2e38;
+}
+
+[data-theme="dark"] .caj-toast-success {
+  background-color: #2d2d2d;
+  border-color: #2f4a3a;
+  color: #b8e0c8;
+}
+
+[data-theme="dark"] .caj-toast-success .caj-toast-icon-wrap {
+  background-color: #2a3830;
+}
+
+/* Modal overlay */
+.caj-modal-overlay {
+  background-color: rgb(0 0 0 / 0.4);
+}
+
+[data-theme="dark"] .caj-modal-overlay {
+  background-color: rgb(0 0 0 / 0.65);
+}
+
+.caj-modal-panel {
+  background-color: var(--caj-surface);
+  border-color: var(--caj-border-strong);
+  color: var(--caj-text);
+}
+
+/* Banner de confirmación (apertura/cierre/modales) */
+.caj-banner {
+  background-color: var(--caj-accent);
+  color: var(--caj-accent-fg);
+}
+
+.caj-banner-muted {
+  color: color-mix(in srgb, var(--caj-accent-fg) 65%, transparent);
+}
+
+.caj-banner-icon-wrap {
+  background-color: color-mix(in srgb, var(--caj-accent-fg) 12%, var(--caj-accent));
+  color: var(--caj-accent-fg);
+}
+
+.caj-icon-chip {
+  background-color: var(--caj-accent);
+  color: var(--caj-accent-fg);
+}
+
+.caj-detail-tile {
+  background-color: var(--caj-surface-elevated);
+  border-color: var(--caj-border);
+  color: var(--caj-text);
+}
+
+.caj-highlight-panel {
+  background-color: var(--caj-bg-muted);
+  border-color: var(--caj-border);
+  color: var(--caj-text);
+}
+
+.caj-btn-secondary {
+  background-color: var(--caj-input);
+  border-color: var(--caj-border);
+  color: var(--caj-text-muted);
+}
+
+.caj-btn-secondary:hover {
+  background-color: var(--caj-surface-elevated);
+  color: var(--caj-text);
+}
+
+.caj-error-banner {
+  background-color: var(--caj-accent);
+  color: var(--caj-accent-fg);
+}
+
+.caj-icon-muted {
+  color: var(--caj-icon-muted);
+}
+
+.caj-pulse-dot {
+  background-color: var(--caj-accent-fg);
+}
+
+.caj-accent-dot {
+  background-color: var(--caj-accent);
+}
+
+.caj-accent-fg {
+  color: var(--caj-accent-fg);
+}
+
+.caj-badge-on-banner {
+  background-color: color-mix(in srgb, var(--caj-accent-fg) 18%, var(--caj-accent));
+  color: var(--caj-accent-fg);
+}
