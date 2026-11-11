@@ -3,6 +3,7 @@ package com.tienda.ropa.config;
 import com.tienda.ropa.config.filter.JwtAuthenticationFilter;
 import com.tienda.ropa.service.UsuarioService;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -24,6 +25,7 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
+import java.util.List;
 
 @Configuration
 @EnableWebSecurity
@@ -32,6 +34,9 @@ public class SecurityConfiguration {
 
         private final JwtAuthenticationFilter jwtAuthenticationFilter;
         private final UsuarioService usuarioService;
+
+        @Value("${cors.allowed-origins:http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173,http://127.0.0.1:3000,http://localhost:1420,http://localhost:4173}")
+        private String corsAllowedOrigins;
 
         public SecurityConfiguration(
                         JwtAuthenticationFilter jwtAuthenticationFilter,
@@ -183,14 +188,12 @@ public class SecurityConfiguration {
                 CorsConfiguration configuration = new CorsConfiguration();
 
                 // Define los orígenes (URL de tu frontend de React) que tienen permitido hacer
-                // peticiones.
-                configuration.setAllowedOrigins(Arrays.asList(
-                                "http://localhost:5173",
-                                "http://localhost:3000",
-                                "http://127.0.0.1:5173",
-                                "http://127.0.0.1:3000",
-                                "http://localhost:1420",
-                                "http://localhost:4173"));
+                // peticiones; acepta patrones (incluyendo "*") gracias a allowedOriginPatterns.
+                List<String> origins = Arrays.stream(corsAllowedOrigins.split(","))
+                                .map(String::trim)
+                                .filter(origin -> !origin.isEmpty())
+                                .toList();
+                configuration.setAllowedOriginPatterns(origins);
 
                 // Define los métodos HTTP que se permitirán (GET, POST, etc.).
                 configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));

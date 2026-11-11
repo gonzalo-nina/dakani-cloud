@@ -317,4 +317,5 @@ export const RUTAS_REPORTES = {
   MLOPS_OPTIMIZAR: `${API_BASE_URL}/api/admin/reportes/mlops/optimizar`,
   STOCK_GENERAL: `${API_BASE_URL}/api/admin/reportes/stock-general`,
   STOCK_VARIANTES_POR_PRODUCTO: (idProducto: number) =>
-    `${API_BASE_URL}/api/admin/reportes/stock-variantes/${idPr
+    `${API_BASE_URL}/api/admin/reportes/stock-variantes/${idProducto}`,
+};
