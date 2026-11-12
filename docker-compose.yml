@@ -1,0 +1,82 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: dakani-postgres
+    restart: always
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - dakani_postgres_data:/var/lib/postgresql/data
+    networks:
+      - dakani-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+
+  backend:
+    build:
+      context: ./Back-End
+      dockerfile: Dockerfile
+    container_name: dakani-backend
+    restart: always
+    environment:
+      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD}
+      SECURITY_JWT_KEY: ${SECURITY_JWT_KEY}
+      SECURITY_JWT_USER_GENERATOR: ${SECURITY_JWT_USER_GENERATOR}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
+      DAKANI_IA_HABILITADA: "false"
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - dakani-net
+    deploy:
+      resources:
+        limits:
+          cpus: '1.5'
+          memory: 1024M
+
+  frontend:
+    build:
+      context: ./front-end/sistemaReact-Main
+      dockerfile: Dockerfile
+    container_name: dakani-frontend
+    restart: always
+    environment:
+      BACKEND_URL: ${BACKEND_URL}
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - dakani-net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+
+volumes:
+  dakani_postgres_data:
+    name: dakani_postgres_data
+
+networks:
+  dakani-net:
+    name: dakani-net
+    driver: bridge
+
